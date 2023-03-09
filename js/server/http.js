@@ -29,7 +29,7 @@ function createHTTPServer() {
 		try {
 			// Rate Limit
 			if(rate_limit.isRateLimited(ipAddress)) {
-				log.logClientEvent(ipAddress, "HTTP Rate Limit");
+				log.logEvent("CLIENT", ipAddress, "HTTP Rate Limit");
 
 				serveError(res, 400, "Too many requests from this IP address. Please wait and try again.");
 				return;
@@ -37,7 +37,7 @@ function createHTTPServer() {
 
 			// Only allow GET method.
 			if(req.method !== "GET") {
-				log.logClientEvent(ipAddress, "HTTP Invalid Method", req.method);
+				log.logEvent("CLIENT", ipAddress, "HTTP Invalid Method", req.method);
 
 				serveError(res, 400, `Invalid method (${req.method}).`);
 				return;
@@ -45,7 +45,7 @@ function createHTTPServer() {
 
 			// Special case for favicon. Use exact match.
 			if(req.url === "/favicon.ico") {
-				log.logClientEvent(ipAddress, "HTTP Favicon");
+				log.logEvent("CLIENT", ipAddress, "HTTP Favicon");
 
 				serveFavicon(res);
 				return;
@@ -104,10 +104,10 @@ function createHTTPServer() {
 				}
 			}
 
-			log.logClientEvent(ipAddress, "HTTP Serve Page Success", pageName);
+			log.logEvent("CLIENT", ipAddress, "HTTP Serve Page Success", pageName);
 		}
 		catch(err) {
-			log.logClientError(ipAddress, "HTTP Serve Page Failure", err);
+			log.logError("CLIENT", ipAddress, "HTTP Serve Page Failure", err);
 
 			serveError(res, 400, "Error processing request.\n\n" + error.createErrorString(err));
 		}
@@ -116,7 +116,7 @@ function createHTTPServer() {
 	server.timeout = SERVER_REQUEST_TIMEOUT;
 
 	server.listen(SERVER_PORT, () => {
-		log.logServerEvent("main", "Server Listen On Port", SERVER_PORT);
+		log.logEvent("SERVER", "main", "Server Listen On Port", SERVER_PORT);
 	});
 
 	return server;

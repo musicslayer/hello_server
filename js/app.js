@@ -11,7 +11,8 @@ const io = socket_io.createSocketIOServer(server);
 // Create the log files.
 log.createLogFiles();
 
-log.logServerEvent("main", "Server Initialized");
+// Finish
+log.logEvent("SERVER", "main", "Server Initialized");
 
 /////////////////////
 // Development code:

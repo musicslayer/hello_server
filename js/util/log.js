@@ -1,387 +1,197 @@
 const fs = require("fs");
 
-// Limit log file sizes to 1GB.
-// Markers will contain a value if logging is disabled.
-const LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
-const LOG_MARKER = [];
-const ERROR_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
-const ERROR_LOG_MARKER = [];
-const CLIENT_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
-const CLIENT_LOG_MARKER = [];
-const CLIENT_ERROR_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
-const CLIENT_ERROR_LOG_MARKER = [];
-const GAME_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
-const GAME_LOG_MARKER = [];
-const GAME_ERROR_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
-const GAME_ERROR_LOG_MARKER = [];
-const SERVER_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
-const SERVER_LOG_MARKER = [];
-const SERVER_ERROR_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
-const SERVER_ERROR_LOG_MARKER = [];
+class Logger {
+	static isInit = false;
+	static loggerMap = new Map();
 
-const logFile = "logs/_log.txt";
-const errorLogFile = "logs/_error_log.txt";
-const gameLogFile = "logs/game_log.txt";
-const gameErrorLogFile = "logs/game_error_log.txt";
-const clientLogFile = "logs/client_log.txt";
-const clientErrorLogFile = "logs/client_error_log.txt";
-const serverLogFile = "logs/server_log.txt";
-const serverErrorLogFile = "logs/server_error_log.txt";
+	static baseFileName;
+	static baseFileNameError;
+	static baseMarker;
+	static baseMarkerError;
+	static baseSizeLimit;
+	static baseSizeLimitError;
 
-let errorCount = 0;
-let gameErrorCount = 0;
-let clientErrorCount = 0;
-let serverErrorCount = 0;
+	category;
+	reference;
+	separator;
+	errorCount;
 
-function createLogFiles() {
-	fs.writeFileSync(logFile, "");
-	fs.writeFileSync(errorLogFile, "");
-	fs.writeFileSync(gameLogFile, "");
-	fs.writeFileSync(gameErrorLogFile, "");
-	fs.writeFileSync(clientLogFile, "");
-	fs.writeFileSync(clientErrorLogFile, "");
-	fs.writeFileSync(serverLogFile, "");
-	fs.writeFileSync(serverErrorLogFile, "");
-}
+	fileName;
+	fileNameError;
+	marker;
+	markerError;
+	sizeLimit;
+	sizeLimitError;
 
-function createInfoString(infoArgs) {
-	let s = "";
-	for(let i = 0; i < infoArgs.length; i++) {
-		s = s + infoArgs[i] + "|";
+	static getLogger(category) {
+		return Logger.loggerMap.get(category);
 	}
-	return s;
-}
 
-// All other log event functions should call this one too.
-function logEvent(marker, separator, timestamp, id, eventName, ...infoArgs) {
-	const infoString = createInfoString(infoArgs);
-	const str = timestamp + separator + marker + separator + id + separator + eventName + separator + infoString + "\n";
-	writeToLogFile(str);
-}
+	static setLogger(category, logger) {
+		Logger.loggerMap.set(category, logger);
+	}
 
-// All other log error functions should call this one too.
-function logError(marker, separator, timestamp, id, errorName, error) {
-	// Log basic info in the log file and include a reference to a fuller entry in the error log file.
-	errorCount++;
+	static createLogger(category, reference, fileName, fileNameError) {
+		Logger.setLogger(category, new Logger(category, reference, fileName, fileNameError));
+	}
 
-	const str = timestamp + separator + marker + separator + id + separator + errorName + separator + "#E[" + errorCount + "]" + "\n";
-	writeToLogFile(str);
+	static initialize() {
+		if(Logger.isInit) { return; }
 
-	const errorStr = "#E[" + errorCount + "]" + "\n" + 
-		"ERROR: " + error + "\n" +
-		"ERROR STACK: " + error.stack + "\n\n";
+		Logger.baseFileName = "logs/_log.txt";
+		Logger.baseFileNameError = "logs/_error_log.txt";
 
-	writeToErrorLogFile(errorStr);
-}
+		// Markers will contain a value if logging is disabled.
+		Logger.baseMarker = [];
+		Logger.baseMarkerError = [];
 
-function logGameEvent(ip, eventName, ...infoArgs) {
-	const marker = "GAME_EVENT";
-	const separator = " ----- "
-	const timestamp = new Date().toISOString();
-	const infoString = createInfoString(infoArgs);
+		// Limit base log file sizes to 5GB.
+		Logger.baseSizeLimit = 5 * 1024 * 1024 * 1024;
+		Logger.baseSizeLimitError = 5 * 1024 * 1024 * 1024;
 
-	const str = timestamp + separator + marker + separator + ip + separator + eventName + separator + infoString + "\n";
-	writeToGameLogFile(str);
+		// Create the log files.
+		fs.writeFileSync(Logger.baseFileName, "");
+		fs.writeFileSync(Logger.baseFileNameError, "");
+	}
 
-	logEvent(marker, separator, timestamp, ip, eventName, ...infoArgs);
-}
+	constructor(category, reference, fileName, fileNameError) {
+		Logger.loggerMap.set(category, this);
 
-function logGameError(ip, errorName, error) {
-	// Log basic info in the log file and include a reference to a fuller entry in the error log file.
-	gameErrorCount++;
+		this.category = category;
+		this.reference = reference;
+		this.separator = " ----- ";
+		this.errorCount = 0;
 
-	const marker = "GAME_ERROR";
-	const separator = " ----- "
-	const timestamp = new Date().toISOString();
+		this.fileName = fileName;
+		this.fileNameError = fileNameError;
+		
+		// Markers will contain a value if logging is disabled.
+		this.marker = [];
+		this.markerError = [];
 
-	const str = timestamp + separator + marker + separator + ip + separator + errorName + separator + "#E[" + gameErrorCount + "]" + "\n";
-	writeToGameLogFile(str);
+		// Limit log file sizes to 1GB.
+		this.sizeLimit = 1 * 1024 * 1024 * 1024;
+		this.sizeLimitError = 1 * 1024 * 1024 * 1024;
 
-	const errorStr = "#E[" + gameErrorCount + "]" + "\n" + 
-		"ERROR: " + error + "\n" +
-		"ERROR STACK: " + error.stack + "\n\n";
+		// Create the log files.
+		fs.writeFileSync(fileName, "");
+		fs.writeFileSync(fileNameError, "");
+	}
 
-	writeToGameErrorLogFile(errorStr);
+	logEvent(id, eventName, infoArgs) {
+		const timestamp = new Date().toISOString();
+		const categoryString = this.category + "_EVENT";
+		const infoString = this.createInfoString(infoArgs);
 
-	logError(marker, separator, timestamp, ip, errorName, error)
-}
+		const str = timestamp + this.separator + categoryString + this.separator + id + this.separator + eventName + this.separator + infoString + "\n";
+		this.writeToLogFile(str);
 
-function logClientEvent(ip, eventName, ...infoArgs) {
-	const marker = "CLIENT_EVENT";
-	const separator = " ----- "
-	const timestamp = new Date().toISOString();
-	const infoString = createInfoString(infoArgs);
+		this.logBaseEvent(timestamp, categoryString, this.separator, id, eventName, infoString);
+	}
 
-	const str = timestamp + separator + marker + separator + ip + separator + eventName + separator + infoString + "\n";
-	writeToClientLogFile(str);
+	logBaseEvent(timestamp, categoryString, separator, id, eventName, infoString) {
+		const str = timestamp + separator + categoryString + separator + id + separator + eventName + separator + infoString + "\n";
+		this.writeToBaseLogFile(str);
+	}
 
-	logEvent(marker, separator, timestamp, ip, eventName, ...infoArgs);
-}
+	logError(id, errorName, error, infoArgs) {
+		// Log basic info in the log file and include a reference to a fuller entry in the error log file.
+		this.errorCount++;
 
-function logClientError(ip, errorName, error) {
-	// Log basic info in the log file and include a reference to a fuller entry in the error log file.
-	clientErrorCount++;
-
-	const marker = "CLIENT_ERROR";
-	const separator = " ----- "
-	const timestamp = new Date().toISOString();
-
-	const str = timestamp + separator + marker + separator + ip + separator + errorName + separator + "#E[" + clientErrorCount + "]" + "\n";
-	writeToClientLogFile(str);
-
-	const errorStr = "#E[" + clientErrorCount + "]" + "\n" + 
-		"ERROR: " + error + "\n" +
-		"ERROR STACK: " + error.stack + "\n\n";
-
-	writeToClientErrorLogFile(errorStr);
-
-	logError(marker, separator, timestamp, ip, errorName, error)
-}
-
-function logServerEvent(serverID, eventName, ...infoArgs) {
-	const marker = "SERVER_EVENT";
-	const separator = " ----- "
-	const timestamp = new Date().toISOString();
-	const infoString = createInfoString(infoArgs);
-
-	const str = timestamp + separator + marker + separator + serverID + separator + eventName + separator + infoString + "\n";
-	writeToServerLogFile(str);
-
-	logEvent(marker, separator, timestamp, serverID, eventName, ...infoArgs);
-}
-
-function logServerError(serverID, errorName, error) {
-	// Log basic info in the log file and include a reference to a fuller entry in the error log file.
-	serverErrorCount++;
-
-	const marker = "SERVER_ERROR";
-	const separator = " ----- "
-	const timestamp = new Date().toISOString();
-
-	const str = timestamp + separator + marker + separator + serverID + separator + errorName + separator + "#E[" + serverErrorCount + "]" + "\n";
-	writeToServerLogFile(str);
-
-	const errorStr = "#E[" + serverErrorCount + "]" + "\n" + 
-		"ERROR: " + error + "\n" +
-		"ERROR STACK: " + error.stack + "\n\n";
-
-	writeToServerErrorLogFile(errorStr);
-
-	logError(marker, separator, timestamp, serverID, errorName, error)
-}
-
-function writeToLogFile(str) {
-	// Write to log file, but if we error or the size would be too big then just print once to console.
-	if(LOG_MARKER.length > 0) { return; }
-
-	try {
-		let currentSize = fs.statSync(logFile).size;
-		let newSize = Buffer.byteLength(str, "utf8");
-		let totalSize = currentSize + newSize;
+		const timestamp = new Date().toISOString();
+		const categoryString = this.category + "_ERROR";
+		const errorRefString = "#" + this.reference + "[" + this.errorCount + "]";
+		const infoString = this.createInfoString(infoArgs);
 	
-		if(totalSize > LOG_SIZE_LIMIT) {
-			LOG_MARKER.push(true);
-			console.log("LOG FILE LIMIT REACHED");
+		const str = timestamp + this.separator + categoryString + this.separator + id + this.separator + errorName + this.separator + errorRefString + this.separator + infoString + "\n";
+		this.writeToLogFile(str);
+	
+		const errorString = errorRefString + "\n" + 
+			"ERROR: " + error + "\n" +
+			"ERROR STACK: " + error.stack + "\n\n";
+	
+		this.writeToErrorLogFile(errorString);
+
+		this.logBaseError(timestamp, categoryString, this.separator, id, errorName, errorRefString, errorString, infoString);
+	}
+
+	// All other log error functions should call this one too.
+	logBaseError(timestamp, categoryString, separator, id, errorName, errorRefString, errorString, infoString) {
+		// Log basic info in the log file and include a reference to a fuller entry in the error log file.
+		const str = timestamp + separator + categoryString + separator + id + separator + errorName + separator + errorRefString + separator + infoString + "\n";
+
+		this.writeToBaseLogFile(str);
+		this.writeToBaseErrorLogFile(errorString);
+	}
+
+	writeToLogFile(str) {
+		this.doWrite(str, this.fileName, this.marker, this.sizeLimit)
+	}
+
+	writeToErrorLogFile(str) {
+		this.doWrite(str, this.fileNameError, this.markerError, this.sizeLimitError)
+	}
+
+	writeToBaseLogFile(str) {
+		this.doWrite(str, Logger.baseFileName, Logger.baseMarker, Logger.baseSizeLimit)
+	}
+
+	writeToBaseErrorLogFile(str) {
+		this.doWrite(str, Logger.baseFileNameError, Logger.baseMarkerError, Logger.baseSizeLimitError)
+	}
+
+	doWrite(str, logFile, marker, sizeLimit) {
+		// Write to log file, but if we error or the size would be too big then just print once to console.
+		if(marker.length > 0) { return; }
+	
+		try {
+			let currentSize = fs.statSync(logFile).size;
+			let newSize = Buffer.byteLength(str, "utf8");
+			let totalSize = currentSize + newSize;
+		
+			if(totalSize > sizeLimit) {
+				marker.push(true);
+				console.log("LOG FILE LIMIT REACHED: " + logFile);
+				console.log("Last Log String: " + str);
+			}
+			else {
+				fs.appendFileSync(logFile, str);
+			}
+		}
+		catch(err) {
+			marker.push(true);
+			console.log("LOG FILE ERROR: " + logFile);
+			console.log(err);
 			console.log("Last Log String: " + str);
 		}
-		else {
-			fs.appendFileSync(logFile, str);
-		}
 	}
-	catch(error) {
-		LOG_MARKER.push(true);
-		console.log("LOG FILE ERROR");
-		console.log(error);
-		console.log("Last Log String: " + str);
+
+	createInfoString(infoArgs) {
+		let s = "";
+		for(let i = 0; i < infoArgs.length; i++) {
+			s = s + infoArgs[i] + "|";
+		}
+		return s;
 	}
 }
 
-function writeToErrorLogFile(str) {
-	// Write to log file, but if we error or the size would be too big then just print once to console.
-	if(ERROR_LOG_MARKER.length > 0) { return; }
-
-	try {
-		let currentSize = fs.statSync(errorLogFile).size;
-		let newSize = Buffer.byteLength(str, "utf8");
-		let totalSize = currentSize + newSize;
-	
-		if(totalSize > ERROR_LOG_SIZE_LIMIT) {
-			ERROR_LOG_MARKER.push(true);
-			console.log("ERROR LOG FILE LIMIT REACHED");
-			console.log("Last Error Log String: " + str);
-		}
-		else {
-			fs.appendFileSync(errorLogFile, str);
-		}
-	}
-	catch(error) {
-		ERROR_LOG_MARKER.push(true);
-		console.log("ERROR LOG FILE ERROR");
-		console.log(error);
-		console.log("Last Error Log String: " + str);
-	}
+function createLogFiles() {
+	Logger.initialize();
+	Logger.createLogger("GAME", "G", "logs/game_log.txt", "logs/game_error_log.txt");
+	Logger.createLogger("CLIENT", "C", "logs/client_log.txt", "logs/client_error_log.txt");
+	Logger.createLogger("SERVER", "S", "logs/server_log.txt", "logs/server_error_log.txt");
 }
 
-function writeToGameLogFile(str) {
-	// Write to log file, but if we error or the size would be too big then just print once to console.
-	if(GAME_LOG_MARKER.length > 0) { return; }
-
-	try {
-		let currentSize = fs.statSync(gameLogFile).size;
-		let newSize = Buffer.byteLength(str, "utf8");
-		let totalSize = currentSize + newSize;
-	
-		if(totalSize > GAME_LOG_SIZE_LIMIT) {
-			GAME_LOG_MARKER.push(true);
-			console.log("GAME LOG FILE LIMIT REACHED");
-			console.log("Last Game Log String: " + str);
-		}
-		else {
-			fs.appendFileSync(gameLogFile, str);
-		}
-	}
-	catch(error) {
-		GAME_LOG_MARKER.push(true);
-		console.log("GAME LOG FILE ERROR");
-		console.log(error);
-		console.log("Last Game Log String: " + str);
-	}
+function logEvent(category, id, eventName, ...infoArgs) {
+	const logger = Logger.getLogger(category);
+	logger.logEvent(id, eventName, infoArgs);
 }
 
-function writeToGameErrorLogFile(str) {
-	// Write to log file, but if we error or the size would be too big then just print once to console.
-	if(GAME_ERROR_LOG_MARKER.length > 0) { return; }
-
-	try {
-		let currentSize = fs.statSync(gameErrorLogFile).size;
-		let newSize = Buffer.byteLength(str, "utf8");
-		let totalSize = currentSize + newSize;
-	
-		if(totalSize > GAME_ERROR_LOG_SIZE_LIMIT) {
-			GAME_ERROR_LOG_MARKER.push(true);
-			console.log("GAME ERROR LOG FILE LIMIT REACHED");
-			console.log("Last Game Error Log String: " + str);
-		}
-		else {
-			fs.appendFileSync(gameErrorLogFile, str);
-		}
-	}
-	catch(error) {
-		GAME_ERROR_LOG_MARKER.push(true);
-		console.log("GAME ERROR LOG FILE ERROR");
-		console.log(error);
-		console.log("Last Game Error Log String: " + str);
-	}
-}
-
-function writeToClientLogFile(str) {
-	// Write to log file, but if we error or the size would be too big then just print once to console.
-	if(CLIENT_LOG_MARKER.length > 0) { return; }
-
-	try {
-		let currentSize = fs.statSync(clientLogFile).size;
-		let newSize = Buffer.byteLength(str, "utf8");
-		let totalSize = currentSize + newSize;
-	
-		if(totalSize > CLIENT_LOG_SIZE_LIMIT) {
-			CLIENT_LOG_MARKER.push(true);
-			console.log("CLIENT LOG FILE LIMIT REACHED");
-			console.log("Last Client Log String: " + str);
-		}
-		else {
-			fs.appendFileSync(clientLogFile, str);
-		}
-	}
-	catch(error) {
-		CLIENT_LOG_MARKER.push(true);
-		console.log("CLIENT LOG FILE ERROR");
-		console.log(error);
-		console.log("Last Client Log String: " + str);
-	}
-}
-
-function writeToClientErrorLogFile(str) {
-	// Write to log file, but if we error or the size would be too big then just print once to console.
-	if(CLIENT_ERROR_LOG_MARKER.length > 0) { return; }
-
-	try {
-		let currentSize = fs.statSync(clientErrorLogFile).size;
-		let newSize = Buffer.byteLength(str, "utf8");
-		let totalSize = currentSize + newSize;
-	
-		if(totalSize > CLIENT_ERROR_LOG_SIZE_LIMIT) {
-			CLIENT_ERROR_LOG_MARKER.push(true);
-			console.log("CLIENT ERROR LOG FILE LIMIT REACHED");
-			console.log("Last Client Error Log String: " + str);
-		}
-		else {
-			fs.appendFileSync(clientErrorLogFile, str);
-		}
-	}
-	catch(error) {
-		CLIENT_ERROR_LOG_MARKER.push(true);
-		console.log("CLIENT ERROR LOG FILE ERROR");
-		console.log(error);
-		console.log("Last Client Error Log String: " + str);
-	}
-}
-
-function writeToServerLogFile(str) {
-	// Write to log file, but if we error or the size would be too big then just print once to console.
-	if(SERVER_LOG_MARKER.length > 0) { return; }
-
-	try {
-		let currentSize = fs.statSync(serverLogFile).size;
-		let newSize = Buffer.byteLength(str, "utf8");
-		let totalSize = currentSize + newSize;
-	
-		if(totalSize > SERVER_LOG_SIZE_LIMIT) {
-			SERVER_LOG_MARKER.push(true);
-			console.log("SERVER LOG FILE LIMIT REACHED");
-			console.log("Last Server Log String: " + str);
-		}
-		else {
-			fs.appendFileSync(serverLogFile, str);
-		}
-	}
-	catch(error) {
-		SERVER_LOG_MARKER.push(true);
-		console.log("SERVER LOG FILE ERROR");
-		console.log(error);
-		console.log("Last Server Log String: " + str);
-	}
-}
-
-function writeToServerErrorLogFile(str) {
-	// Write to log file, but if we error or the size would be too big then just print once to console.
-	if(SERVER_ERROR_LOG_MARKER.length > 0) { return; }
-
-	try {
-		let currentSize = fs.statSync(serverErrorLogFile).size;
-		let newSize = Buffer.byteLength(str, "utf8");
-		let totalSize = currentSize + newSize;
-	
-		if(totalSize > SERVER_ERROR_LOG_SIZE_LIMIT) {
-			SERVER_ERROR_LOG_MARKER.push(true);
-			console.log("SERVER ERROR LOG FILE LIMIT REACHED");
-			console.log("Last Server Error Log String: " + str);
-		}
-		else {
-			fs.appendFileSync(serverErrorLogFile, str);
-		}
-	}
-	catch(error) {
-		SERVER_ERROR_LOG_MARKER.push(true);
-		console.log("SERVER ERROR LOG FILE ERROR");
-		console.log(error);
-		console.log("Last Server Error Log String: " + str);
-	}
+function logError(category, id, errorName, error, ...infoArgs) {
+	const logger = Logger.getLogger(category);
+	logger.logError(id, errorName, error, infoArgs);
 }
 
 module.exports.createLogFiles = createLogFiles;
-module.exports.logClientEvent = logClientEvent;
-module.exports.logClientError = logClientError;
-module.exports.logGameEvent = logGameEvent;
-module.exports.logGameError = logGameError;
-module.exports.logServerEvent = logServerEvent;
-module.exports.logServerError = logServerError;
+module.exports.logEvent = logEvent;
+module.exports.logError = logError;

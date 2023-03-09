@@ -39,7 +39,7 @@ function createSocketIOServer(server) {
 				let isSuccess = changeUserPassword(username, password);
 				let isSuccessString = isSuccess ? "Success" : "Failure";
 				
-				log.logClientEvent(ipAddress, "Socket IO Change Password", username, isSuccessString);
+				log.logEvent("CLIENT", ipAddress, "Socket IO Change Password", username, isSuccessString);
 
 				callback({success:isSuccess});
 			});
@@ -53,7 +53,7 @@ function createSocketIOServer(server) {
 				let isSuccess = message.sendAccountCreationEmail(email, url);
 				let isSuccessString = isSuccess ? "Success" : "Failure";
 
-				log.logClientEvent(ipAddress, "Socket IO Email Create Account", email, isSuccessString);
+				log.logEvent("CLIENT", ipAddress, "Socket IO Email Create Account", email, isSuccessString);
 
 				callback({success:isSuccess});
 			});
@@ -61,7 +61,7 @@ function createSocketIOServer(server) {
 				let isSuccess = message.sendPasswordResetEmail(email, url);
 				let isSuccessString = isSuccess ? "Success" : "Failure";
 				
-				log.logClientEvent(ipAddress, "Socket IO Email Reset Password", email, isSuccessString);
+				log.logEvent("CLIENT", ipAddress, "Socket IO Email Reset Password", email, isSuccessString);
 
 				callback({success:isSuccess});
 			});
@@ -74,23 +74,28 @@ function createSocketIOServer(server) {
 			const username = socket.handshake.auth.username;
 			const password = socket.handshake.auth.password;
 
-			log.logClientEvent(ipAddress, "Socket IO Login Success", username);
+			log.logEvent("CLIENT", ipAddress, "Socket IO Login Success", username);
 	
 			emitUserLogin(socket, username, password);
 			emitUserGameData(socket, username);
 	
 			socket.on("grind_skill", (username) => {
-				let experience = getGameData(username, "experience");
-				experience++;
-				setGameData(username, "experience", experience);
+				try {
+					let experience = getGameData(username, "experience");
+					experience++;
+					setGameData(username, "experience", experience);
 
-				log.logGameEvent(ipAddress, "Game Experience Change", username, experience);
+					log.logEvent("GAME", ipAddress, "Game Experience Change", username, experience);
 
-				emitUserGameData(socket, username);
+					emitUserGameData(socket, username);
+				}
+				catch(err) {
+					log.logError("GAME", ipAddress, "Game Experience Change Failure", err);
+				}
 			});
 		}
 
-		log.logClientEvent(ipAddress, "Socket IO Connection Success", type);
+		log.logEvent("CLIENT", ipAddress, "Socket IO Connection Success", type);
 	});
 	
 	// Rate Limit
@@ -98,7 +103,7 @@ function createSocketIOServer(server) {
 		const ipAddress = ip.getIPAddressFromSocket(socket);
 
 		if(rate_limit.isRateLimited(ipAddress)) {
-			log.logClientEvent(ipAddress, "Socket IO Connection Rate Limit");
+			log.logEvent("CLIENT", ipAddress, "Socket IO Connection Rate Limit");
 
 			const err = new Error("Rate Limit Error");
 			err.data = "Too many requests from this IP address. Please wait and try again.";
@@ -122,7 +127,7 @@ function createSocketIOServer(server) {
 		const ipAddress = ip.getIPAddressFromSocket(socket);
 	
 		if(!isUser(username)) {
-			log.logClientEvent(ipAddress, "Socket IO Login Failure", "User Not Found");
+			log.logEvent("CLIENT", ipAddress, "Socket IO Login Failure", "User Not Found");
 
 			const err = new Error("Login Error");
 			err.data = "Username: " + username + "\nUser does not exist.";
@@ -130,7 +135,7 @@ function createSocketIOServer(server) {
 			return;
 		}
 		else if(!isUserPassword(username, password)) {
-			log.logClientEvent(ipAddress, "Socket IO Login Failure", "Incorrect Password");
+			log.logEvent("CLIENT", ipAddress, "Socket IO Login Failure", "Incorrect Password");
 
 			const err = new Error("Login Error");
 			err.data = "Username: " + username + "\nIncorrect password.";
