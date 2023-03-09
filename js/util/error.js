@@ -15,3 +15,5 @@ function createErrorString(error) {
 
 	return errorString;
 }
+
+module.exports.createErrorString = createErrorString;

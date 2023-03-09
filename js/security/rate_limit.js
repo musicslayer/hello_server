@@ -25,3 +25,5 @@ function isRateLimited(ip) {
 
 	return record.count > RATELIMIT_COUNT;
 }
+
+module.exports.isRateLimited = isRateLimited;

@@ -1,0 +1,8 @@
+2023-03-09T04:41:19.210Z ----- CLIENT_EVENT ----- 78 ----- Create Account ----- Other Info
+2023-03-09T04:41:19.211Z ----- CLIENT_EVENT ----- 99 ----- Login ----- More Info
+2023-03-09T04:41:19.212Z ----- CLIENT_ERROR ----- 444422112 ----- Login Failed ----- #E[1]
+2023-03-09T04:41:19.213Z ----- CLIENT_ERROR ----- 444422112 ----- Login Failed ----- #E[2]
+2023-03-09T04:41:19.214Z ----- SERVER_EVENT ----- main ----- Create Account ----- Other Info
+2023-03-09T04:41:19.215Z ----- SERVER_EVENT ----- main ----- Login ----- More Info
+2023-03-09T04:41:19.216Z ----- SERVER_ERROR ----- main ----- Login Failed ----- #E[3]
+2023-03-09T04:41:19.217Z ----- SERVER_ERROR ----- main ----- Login Failed ----- #E[4]

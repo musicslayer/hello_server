@@ -1,10 +1,15 @@
 const url = require("url");
 
+function getURLParameter(_url, param) {
+    const queryObject = url.parse(_url, true).query;
+    return queryObject[param];
+}
+
 function isValidQuery(_url, requiredKeys, optionalKeys) {
 	// Check for expected and optional query keys (order does not matter, but case and count do).
     const queryObject = url.parse(_url, true).query;
 
-	for(var rk = 0; rk < requiredKeys.length; rk++) {
+	for(let rk = 0; rk < requiredKeys.length; rk++) {
 		requiredKey = requiredKeys[rk];
 
 		// Each required option must appear exactly one time.
@@ -15,7 +20,7 @@ function isValidQuery(_url, requiredKeys, optionalKeys) {
 		delete(queryObject[requiredKey]);
 	}
 
-	for(var ok = 0; ok < optionalKeys.length; ok++) {
+	for(let ok = 0; ok < optionalKeys.length; ok++) {
 		optionalKey = optionalKeys[ok];
 
 		// Each optional option must be absent or appear one time.
@@ -34,7 +39,5 @@ function isValidQuery(_url, requiredKeys, optionalKeys) {
 	return true;
 }
 
-function getURLParameter(_url, param) {
-    const queryObject = url.parse(_url, true).query;
-    return queryObject[param];
-}
+module.exports.getURLParameter = getURLParameter;
+module.exports.isValidQuery = isValidQuery;

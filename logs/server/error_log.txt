@@ -1,0 +1,8 @@
+#E[1]
+ERROR: [object Object]
+ERROR STACK: ABC
+
+#E[2]
+ERROR: [object Object]
+ERROR STACK: ABC
+
