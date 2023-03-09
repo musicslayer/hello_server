@@ -1,48 +1,7 @@
-// Use 0 to save bandwidth, but use a larger number to make responses easier to read.
-const FORMAT_JSONINDENT = 0;
-
 // Limit the log file size to 1GB.
 const LOG_FILE = 'log.txt';
 const LOG_SIZELIMIT = 1 * 1024 * 1024 * 1024; //bytes
-const LOG_MARKER = [];
-
-// Rate limit is 100 requests every minute per IP Address.
-const RATELIMIT_RECORDS = new Map();
-const RATELIMIT_COUNT_LOW = 3;
-const RATELIMIT_COUNT_HIGH = 10;
-const RATELIMIT_COUNT_MAX = 1000000;
-const RATELIMIT_RESETTIME = 60000; //milliseconds
-
-setInterval(() => {
-	// Reset the rate limit data every interval.
-	RATELIMIT_RECORDS.clear();
-}, RATELIMIT_RESETTIME);
-
-function isRateLimited(req, apikey) {
-	var RATELIMIT_COUNT;
-	if(apikey === "qwerty") {
-		RATELIMIT_COUNT = RATELIMIT_COUNT_HIGH;
-	}
-	else {
-		RATELIMIT_COUNT = RATELIMIT_COUNT_LOW;
-	}
-
-	var ip = req.socket.remoteAddress;
-	var record = RATELIMIT_RECORDS.get(ip);
-	if(record) {
-		// Record exists (within time window).
-		// Limit this value to prevent overflow.
-		record.count = Math.min(record.count + 1, RATELIMIT_COUNT_MAX + 1);
-	}
-	else {
-		// First time (within time window).
-		record = new Object;
-		record.count = 1;
-		RATELIMIT_RECORDS.set(ip, record);
-	}
-
-	return record.count > RATELIMIT_COUNT;
-}
+const LOG_MARKER = []; // Will contain a value if logging is disabled.
 
 function logError(req, error, info) {
 	// Log all errors to the log file.
@@ -94,13 +53,4 @@ function writeToLogFile(str) {
 		console.log(error);
 		console.log("Last Log String: " + str);
 	}
-}
-
-// These are useful for debugging, but not always good for production.
-function logProgress(str) {
-	//console.log("PROGRESS: " + str);
-}
-
-function logDebugError(req, error, info) {
-	//logError(req, error, info);
 }

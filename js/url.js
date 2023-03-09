@@ -1,0 +1,40 @@
+const url = require("url");
+
+function isValidQuery(_url, requiredKeys, optionalKeys) {
+	// Check for expected and optional query keys (order does not matter, but case and count do).
+    const queryObject = url.parse(_url, true).query;
+
+	for(var rk = 0; rk < requiredKeys.length; rk++) {
+		requiredKey = requiredKeys[rk];
+
+		// Each required option must appear exactly one time.
+		if(typeof(queryObject[requiredKey]) !== "string") {
+			return false;
+		}
+
+		delete(queryObject[requiredKey]);
+	}
+
+	for(var ok = 0; ok < optionalKeys.length; ok++) {
+		optionalKey = optionalKeys[ok];
+
+		// Each optional option must be absent or appear one time.
+		if(typeof(queryObject[optionalKey]) !== "undefined" && typeof(queryObject[optionalKey]) !== "string") {
+			return false;
+		}
+
+		delete(queryObject[optionalKey]);
+	}
+
+	// If any extra options are there, the query is invalid.
+	if(Object.keys(queryObject).length > 0) {
+		return false;
+	}
+
+	return true;
+}
+
+function getURLParameter(_url, param) {
+    const queryObject = url.parse(_url, true).query;
+    return queryObject[param];
+}

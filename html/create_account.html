@@ -68,7 +68,7 @@
 					socket.disconnect(true);
 				}
 				
-				socket = io({auth: "", query: {info: "account"}});
+				socket = io({auth: "", query: {info: "account", email: "account"}});
 			});
 			
 			// Accounts
@@ -101,13 +101,17 @@
 					CreateAccountResultText.innerHTML = "Must supply a valid email.";
 				}
 				else {
-					CreateAccountResultText.style.color = BLACK;
-					CreateAccountResultText.innerHTML = "Check your email for a verification link.";
-					
-					// Send an email with a verification link. Clicking this link will actually create the account.
 					const url = "http://localhost:8080/create_account_verify?username=" + username + "&password=" + password + "&email=" + email;
-					CreateAccountHyperlink.style.display = "inline";
-					CreateAccountHyperlink.href = url;
+					
+					let R = await socket.emitWithAck("send_account_creation_email", email, url);
+					if(R.success) {
+						CreateAccountResultText.style.color = BLACK;
+						CreateAccountResultText.innerHTML = "Check your email for a confirmation link to complete the process.";
+					}
+					else {
+						CreateAccountResultText.style.color = RED;
+						CreateAccountResultText.innerHTML = "There is a problem sending the email with the confirmation link. Please try again later.";
+					}
 				}
 			});
 			

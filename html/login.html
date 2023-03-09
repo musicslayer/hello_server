@@ -55,20 +55,15 @@
 					socket.disconnect(true);
 				}
 				
-				socket = io({auth: {username: username, password: password}});
+				socket = io({auth: {username: username, password: password}, query: {login: "account"}});
 				
 				socket.on("connect_error", (err) => {
 					updateUserDataError(err);
 				});
 				
-				socket.on('user login', (msg) => {
-					updateUserData(msg);
+				socket.on('user login', (username, password) => {
+					window.location.assign("/game?username=" + username + "&password=" + password);
 				});
-			}
-			
-			function updateUserData(msg) {
-				LoginResultText.style.color = BLACK;
-				LoginResultText.innerHTML = "Current User: " + msg;
 			}
 			
 			function updateUserDataError(err) {

@@ -6,32 +6,22 @@
 
 	<body>
 		<h1>Hello Server</h1>
-		<h2>Account</h2>
-		<button id="ID_Account1Button">Account 1</button>
-		<button id="ID_Account2Button">Account 2</button>
-		<button id="ID_Account3Button">Account 3</button>
-		<button id="ID_Account4Button">Account 4</button>
+		
+		<a href="/login">Log out.</a>
 		
 		<p id="ID_CurrentUserText" style='white-space: pre;'></p>
 		
 		<h2>Game</h2>
 		<button id="ID_GrindButton">Grind</button>
-		<button id="ID_DisplayButton">Display</button>
 		
 		<p id="ID_DisplayText" style='display:none; white-space:pre;'></p>
 		
 		<script src="/socket.io/socket.io.js"></script>
 		
 		<script>
-			const Account1Button = document.querySelector('#ID_Account1Button');
-			const Account2Button = document.querySelector('#ID_Account2Button');
-			const Account3Button = document.querySelector('#ID_Account3Button');
-			const Account4Button = document.querySelector('#ID_Account4Button');
-			
 			const CurrentUserText = document.querySelector('#ID_CurrentUserText');
 		
 			const GrindButton = document.querySelector('#ID_GrindButton');
-			const DisplayButton = document.querySelector('#ID_DisplayButton');
 			const DisplayText = document.querySelector('#ID_DisplayText');
 			
 			const BLACK = "#000000";
@@ -40,52 +30,34 @@
 			var socket;
 			var currentUserGameData;
 			
-			// Accounts
-			Account1Button.addEventListener('click', () => {
-				connectToServer("mr_a", "fluffy");
+			window.addEventListener('load', () => {
+				connectToServer(getUsername(), getPassword())
 			});
-			
-			Account2Button.addEventListener('click', () => {
-				connectToServer("mr_a", "wrong");
-			});
-			
-			Account3Button.addEventListener('click', () => {
-				connectToServer("mr_c", "other");
-			});
-			
-			Account4Button.addEventListener('click', () => {
-				connectToServer("mr_d", "xyz");
-			});
-			
-			// Game
 			
 			GrindButton.addEventListener('click', () => {
 				socket.emit('grind_skill', currentUserGameData.get("username"));
 			});
-			
-			DisplayButton.addEventListener('click', () => {
-				DisplayText.innerHTML = "Experience: " + currentUserGameData.get("experience");
-			});
+		
 			
 			function connectToServer(username, password) {
 				if(socket) {
 					socket.disconnect(true);
 				}
 				
-				socket = io({auth: {username: username, password: password}});
+				socket = io({auth: {username: username, password: password}, query: {login: "account"}});
 				
 				socket.on("connect_error", (err) => {
 					updateUserDataError(err);
-					updateGameDataError();
+					updateUserGameDataError();
 				});
 				
-				socket.on('user login', (msg) => {
-					updateUserData(msg);
+				socket.on('user login', (username, password) => {
+					updateUserData(username);
 				});	
 				
 				socket.on('update user data', (msg) => {
 					currentUserGameData = new Map(JSON.parse(msg));
-					updateGameData();
+					updateUserGameData();
 				});	
 			}
 			
@@ -99,13 +71,35 @@
 				CurrentUserText.innerHTML = err.message + "\n" + err.data;
 			}
 			
-			function updateGameData() {
+			function updateUserGameData() {
 				DisplayText.style.display = "block";
 				DisplayText.innerHTML = "Experience: " + currentUserGameData.get("experience");
 			}
 			
-			function updateGameDataError() {
+			function updateUserGameDataError() {
 				DisplayText.style.display = "none";
+			}
+			
+			function getUsername() {
+				return getURLParameter("username");
+			}
+			
+			function getPassword() {
+				return getURLParameter("password");
+			}
+			
+			function getURLParameter(sParam) {
+				var sPageURL = window.location.search.substring(1);
+				var sURLVariables = sPageURL.split('&');
+				
+				for(var i = 0; i < sURLVariables.length; i++) {
+					var sParameterName = sURLVariables[i].split('=');
+					if(sParameterName[0] == sParam) {
+						return sParameterName[1];
+					}
+				}
+				
+				return "";
 			}
 		</script>
 	</body>
