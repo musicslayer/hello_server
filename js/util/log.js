@@ -10,6 +10,10 @@ const CLIENT_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
 const CLIENT_LOG_MARKER = [];
 const CLIENT_ERROR_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
 const CLIENT_ERROR_LOG_MARKER = [];
+const GAME_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
+const GAME_LOG_MARKER = [];
+const GAME_ERROR_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
+const GAME_ERROR_LOG_MARKER = [];
 const SERVER_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
 const SERVER_LOG_MARKER = [];
 const SERVER_ERROR_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
@@ -17,27 +21,41 @@ const SERVER_ERROR_LOG_MARKER = [];
 
 const logFile = "logs/_log.txt";
 const errorLogFile = "logs/_error_log.txt";
+const gameLogFile = "logs/game_log.txt";
+const gameErrorLogFile = "logs/game_error_log.txt";
 const clientLogFile = "logs/client_log.txt";
 const clientErrorLogFile = "logs/client_error_log.txt";
 const serverLogFile = "logs/server_log.txt";
 const serverErrorLogFile = "logs/server_error_log.txt";
 
 let errorCount = 0;
+let gameErrorCount = 0;
 let clientErrorCount = 0;
 let serverErrorCount = 0;
 
 function createLogFiles() {
 	fs.writeFileSync(logFile, "");
 	fs.writeFileSync(errorLogFile, "");
+	fs.writeFileSync(gameLogFile, "");
+	fs.writeFileSync(gameErrorLogFile, "");
 	fs.writeFileSync(clientLogFile, "");
 	fs.writeFileSync(clientErrorLogFile, "");
 	fs.writeFileSync(serverLogFile, "");
 	fs.writeFileSync(serverErrorLogFile, "");
 }
 
+function createInfoString(infoArgs) {
+	let s = "";
+	for(let i = 0; i < infoArgs.length; i++) {
+		s = s + infoArgs[i] + "|";
+	}
+	return s;
+}
+
 // All other log event functions should call this one too.
-function logEvent(marker, separator, timestamp, id, eventName, info) {
-	const str = timestamp + separator + marker + separator + id + separator + eventName + separator + info + "\n";
+function logEvent(marker, separator, timestamp, id, eventName, ...infoArgs) {
+	const infoString = createInfoString(infoArgs);
+	const str = timestamp + separator + marker + separator + id + separator + eventName + separator + infoString + "\n";
 	writeToLogFile(str);
 }
 
@@ -56,15 +74,48 @@ function logError(marker, separator, timestamp, id, errorName, error) {
 	writeToErrorLogFile(errorStr);
 }
 
-function logClientEvent(ip, eventName, info) {
-	const marker = "CLIENT_EVENT";
+function logGameEvent(ip, eventName, ...infoArgs) {
+	const marker = "GAME_EVENT";
+	const separator = " ----- "
+	const timestamp = new Date().toISOString();
+	const infoString = createInfoString(infoArgs);
+
+	const str = timestamp + separator + marker + separator + ip + separator + eventName + separator + infoString + "\n";
+	writeToGameLogFile(str);
+
+	logEvent(marker, separator, timestamp, ip, eventName, ...infoArgs);
+}
+
+function logGameError(ip, errorName, error) {
+	// Log basic info in the log file and include a reference to a fuller entry in the error log file.
+	gameErrorCount++;
+
+	const marker = "GAME_ERROR";
 	const separator = " ----- "
 	const timestamp = new Date().toISOString();
 
-	const str = timestamp + separator + marker + separator + ip + separator + eventName + separator + info + "\n";
+	const str = timestamp + separator + marker + separator + ip + separator + errorName + separator + "#E[" + gameErrorCount + "]" + "\n";
+	writeToGameLogFile(str);
+
+	const errorStr = "#E[" + gameErrorCount + "]" + "\n" + 
+		"ERROR: " + error + "\n" +
+		"ERROR STACK: " + error.stack + "\n\n";
+
+	writeToGameErrorLogFile(errorStr);
+
+	logError(marker, separator, timestamp, ip, errorName, error)
+}
+
+function logClientEvent(ip, eventName, ...infoArgs) {
+	const marker = "CLIENT_EVENT";
+	const separator = " ----- "
+	const timestamp = new Date().toISOString();
+	const infoString = createInfoString(infoArgs);
+
+	const str = timestamp + separator + marker + separator + ip + separator + eventName + separator + infoString + "\n";
 	writeToClientLogFile(str);
 
-	logEvent(marker, separator, timestamp, ip, eventName, info);
+	logEvent(marker, separator, timestamp, ip, eventName, ...infoArgs);
 }
 
 function logClientError(ip, errorName, error) {
@@ -87,15 +138,16 @@ function logClientError(ip, errorName, error) {
 	logError(marker, separator, timestamp, ip, errorName, error)
 }
 
-function logServerEvent(serverID, eventName, info) {
+function logServerEvent(serverID, eventName, ...infoArgs) {
 	const marker = "SERVER_EVENT";
 	const separator = " ----- "
 	const timestamp = new Date().toISOString();
+	const infoString = createInfoString(infoArgs);
 
-	const str = timestamp + separator + marker + separator + serverID + separator + eventName + separator + info + "\n";
+	const str = timestamp + separator + marker + separator + serverID + separator + eventName + separator + infoString + "\n";
 	writeToServerLogFile(str);
 
-	logEvent(marker, separator, timestamp, serverID, eventName, info);
+	logEvent(marker, separator, timestamp, serverID, eventName, ...infoArgs);
 }
 
 function logServerError(serverID, errorName, error) {
@@ -167,6 +219,58 @@ function writeToErrorLogFile(str) {
 		console.log("ERROR LOG FILE ERROR");
 		console.log(error);
 		console.log("Last Error Log String: " + str);
+	}
+}
+
+function writeToGameLogFile(str) {
+	// Write to log file, but if we error or the size would be too big then just print once to console.
+	if(GAME_LOG_MARKER.length > 0) { return; }
+
+	try {
+		let currentSize = fs.statSync(gameLogFile).size;
+		let newSize = Buffer.byteLength(str, "utf8");
+		let totalSize = currentSize + newSize;
+	
+		if(totalSize > GAME_LOG_SIZE_LIMIT) {
+			GAME_LOG_MARKER.push(true);
+			console.log("GAME LOG FILE LIMIT REACHED");
+			console.log("Last Game Log String: " + str);
+		}
+		else {
+			fs.appendFileSync(gameLogFile, str);
+		}
+	}
+	catch(error) {
+		GAME_LOG_MARKER.push(true);
+		console.log("GAME LOG FILE ERROR");
+		console.log(error);
+		console.log("Last Game Log String: " + str);
+	}
+}
+
+function writeToGameErrorLogFile(str) {
+	// Write to log file, but if we error or the size would be too big then just print once to console.
+	if(GAME_ERROR_LOG_MARKER.length > 0) { return; }
+
+	try {
+		let currentSize = fs.statSync(gameErrorLogFile).size;
+		let newSize = Buffer.byteLength(str, "utf8");
+		let totalSize = currentSize + newSize;
+	
+		if(totalSize > GAME_ERROR_LOG_SIZE_LIMIT) {
+			GAME_ERROR_LOG_MARKER.push(true);
+			console.log("GAME ERROR LOG FILE LIMIT REACHED");
+			console.log("Last Game Error Log String: " + str);
+		}
+		else {
+			fs.appendFileSync(gameErrorLogFile, str);
+		}
+	}
+	catch(error) {
+		GAME_ERROR_LOG_MARKER.push(true);
+		console.log("GAME ERROR LOG FILE ERROR");
+		console.log(error);
+		console.log("Last Game Error Log String: " + str);
 	}
 }
 
@@ -277,5 +381,7 @@ function writeToServerErrorLogFile(str) {
 module.exports.createLogFiles = createLogFiles;
 module.exports.logClientEvent = logClientEvent;
 module.exports.logClientError = logClientError;
+module.exports.logGameEvent = logGameEvent;
+module.exports.logGameError = logGameError;
 module.exports.logServerEvent = logServerEvent;
 module.exports.logServerError = logServerError;

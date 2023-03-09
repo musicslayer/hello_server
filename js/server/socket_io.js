@@ -1,4 +1,5 @@
 const ip = require("../util/ip.js");
+const log = require("../util/log.js");
 const message = require("../util/message.js");
 const rate_limit = require("../security/rate_limit.js");
 const url = require("../util/url.js");
@@ -10,8 +11,13 @@ function createSocketIOServer(server) {
 	const io = new require("socket.io")(server);
 
 	io.on("connection", (socket) => {
+		const ipAddress = ip.getIPAddressFromSocket(socket);
+		let type = "";
+
 		if(socket.handshake.query.info) {
 			// Querying server info
+			type = type + "Info;";
+
 			socket.on("is_user", (username, callback) => {
 				callback({isUser:isUser(username)});
 			});
@@ -27,25 +33,48 @@ function createSocketIOServer(server) {
 	
 		if(socket.handshake.query.change) {
 			// Changing account settings
+			type = type + "Change;";
+
 			socket.on("change_user_password", (username, password, callback) => {
-				callback({success:changeUserPassword(username, password)});
+				let isSuccess = changeUserPassword(username, password);
+				let isSuccessString = isSuccess ? "Success" : "Failure";
+				
+				log.logClientEvent(ipAddress, "Socket IO Change Password", username, isSuccessString);
+
+				callback({success:isSuccess});
 			});
 		}
 	
 		if(socket.handshake.query.email) {
 			// Email sending
+			type = type + "Email;";
+
 			socket.on("send_account_creation_email", (email, url, callback) => {
-				callback({success:message.sendAccountCreationEmail(email, url)});
+				let isSuccess = message.sendAccountCreationEmail(email, url);
+				let isSuccessString = isSuccess ? "Success" : "Failure";
+
+				log.logClientEvent(ipAddress, "Socket IO Email Create Account", email, isSuccessString);
+
+				callback({success:isSuccess});
 			});
 			socket.on("send_password_reset_email", (email, url, callback) => {
-				callback({success:message.sendPasswordResetEmail(email, url)});
+				let isSuccess = message.sendPasswordResetEmail(email, url);
+				let isSuccessString = isSuccess ? "Success" : "Failure";
+				
+				log.logClientEvent(ipAddress, "Socket IO Email Reset Password", email, isSuccessString);
+
+				callback({success:isSuccess});
 			});
 		}
 	
 		if(socket.handshake.query.login) {
 			// Normal login
+			type = type + "Login;";
+
 			const username = socket.handshake.auth.username;
 			const password = socket.handshake.auth.password;
+
+			log.logClientEvent(ipAddress, "Socket IO Login Success", username);
 	
 			emitUserLogin(socket, username, password);
 			emitUserGameData(socket, username);
@@ -54,14 +83,23 @@ function createSocketIOServer(server) {
 				let experience = getGameData(username, "experience");
 				experience++;
 				setGameData(username, "experience", experience);
+
+				log.logGameEvent(ipAddress, "Game Experience Change", username, experience);
+
 				emitUserGameData(socket, username);
 			});
 		}
+
+		log.logClientEvent(ipAddress, "Socket IO Connection Success", type);
 	});
 	
 	// Rate Limit
 	io.use((socket, next) => {
-		if(rate_limit.isRateLimited(ip.getIPAddressFromSocket(socket))) {
+		const ipAddress = ip.getIPAddressFromSocket(socket);
+
+		if(rate_limit.isRateLimited(ipAddress)) {
+			log.logClientEvent(ipAddress, "Socket IO Connection Rate Limit");
+
 			const err = new Error("Rate Limit Error");
 			err.data = "Too many requests from this IP address. Please wait and try again.";
 			next(err);
@@ -81,14 +119,19 @@ function createSocketIOServer(server) {
 	
 		const username = socket.handshake.auth.username;
 		const password = socket.handshake.auth.password;
+		const ipAddress = ip.getIPAddressFromSocket(socket);
 	
 		if(!isUser(username)) {
+			log.logClientEvent(ipAddress, "Socket IO Login Failure", "User Not Found");
+
 			const err = new Error("Login Error");
 			err.data = "Username: " + username + "\nUser does not exist.";
 			next(err);
 			return;
 		}
 		else if(!isUserPassword(username, password)) {
+			log.logClientEvent(ipAddress, "Socket IO Login Failure", "Incorrect Password");
+
 			const err = new Error("Login Error");
 			err.data = "Username: " + username + "\nIncorrect password.";
 			next(err);
