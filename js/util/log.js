@@ -15,12 +15,12 @@ const SERVER_LOG_MARKER = [];
 const SERVER_ERROR_LOG_SIZE_LIMIT = 1 * 1024 * 1024 * 1024;
 const SERVER_ERROR_LOG_MARKER = [];
 
-const logFile = "logs/log.txt";
-const errorLogFile = "logs/error_log.txt";
-const clientLogFile = "logs/client/log.txt";
-const clientErrorLogFile = "logs/client/error_log.txt";
-const serverLogFile = "logs/server/log.txt";
-const serverErrorLogFile = "logs/server/error_log.txt";
+const logFile = "logs/_log.txt";
+const errorLogFile = "logs/_error_log.txt";
+const clientLogFile = "logs/client_log.txt";
+const clientErrorLogFile = "logs/client_error_log.txt";
+const serverLogFile = "logs/server_log.txt";
+const serverErrorLogFile = "logs/server_error_log.txt";
 
 let errorCount = 0;
 let clientErrorCount = 0;
