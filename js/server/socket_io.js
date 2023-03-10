@@ -66,48 +66,48 @@ function createSocketIOServer(server) {
 			// Email sending
 			type = type + "Email;";
 
-			socket.on("send_account_creation_email", (email, url, callback) => {
-				let isSuccess = message.sendAccountCreationEmail(email, url);
+			socket.on("send_account_creation_email", async (email, url, callback) => {
+				let isSuccess = await message.sendAccountCreationEmail(email, url);
 				let isSuccessString = isSuccess ? "Success" : "Failure";
 
 				log.logEvent("CLIENT", ipAddress, "Socket IO Email Create Account", email, isSuccessString);
 
 				callback({success:isSuccess});
 			});
-			socket.on("send_password_reset_email", (email, url, callback) => {
-				let isSuccess = message.sendPasswordResetEmail(email, url);
+			socket.on("send_password_reset_email", async (email, url, callback) => {
+				let isSuccess = await message.sendPasswordResetEmail(email, url);
 				let isSuccessString = isSuccess ? "Success" : "Failure";
 				
 				log.logEvent("CLIENT", ipAddress, "Socket IO Email Reset Password", email, isSuccessString);
 
 				callback({success:isSuccess});
 			});
-			socket.on("send_email_change_email", (email, url, callback) => {
-				let isSuccess = message.sendEmailChangeEmail(email, url);
+			socket.on("send_email_change_email", async (email, url, callback) => {
+				let isSuccess = await message.sendEmailChangeEmail(email, url);
 				let isSuccessString = isSuccess ? "Success" : "Failure";
 				
 				log.logEvent("CLIENT", ipAddress, "Socket IO Email Change Email", email, isSuccessString);
 
 				callback({success:isSuccess});
 			});
-			socket.on("send_log_out_email", (email, url, callback) => {
-				let isSuccess = message.sendLogOutEmail(email, url);
+			socket.on("send_log_out_email", async (email, url, callback) => {
+				let isSuccess = await message.sendLogOutEmail(email, url);
 				let isSuccessString = isSuccess ? "Success" : "Failure";
 				
 				log.logEvent("CLIENT", ipAddress, "Socket IO Email Log Out", email, isSuccessString);
 
 				callback({success:isSuccess});
 			});
-			socket.on("send_reset_account_email", (email, url, callback) => {
-				let isSuccess = message.sendResetAccountEmail(email, url);
+			socket.on("send_reset_account_email", async (email, url, callback) => {
+				let isSuccess = await message.sendResetAccountEmail(email, url);
 				let isSuccessString = isSuccess ? "Success" : "Failure";
 				
 				log.logEvent("CLIENT", ipAddress, "Socket IO Email Reset Account", email, isSuccessString);
 
 				callback({success:isSuccess});
 			});
-			socket.on("send_delete_account_email", (email, url, callback) => {
-				let isSuccess = message.sendDeleteAccountEmail(email, url);
+			socket.on("send_delete_account_email", async (email, url, callback) => {
+				let isSuccess = await message.sendDeleteAccountEmail(email, url);
 				let isSuccessString = isSuccess ? "Success" : "Failure";
 				
 				log.logEvent("CLIENT", ipAddress, "Socket IO Email Delete Account", email, isSuccessString);

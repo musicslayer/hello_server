@@ -1,6 +1,12 @@
 {
   "dependencies": {
+    "deep-email-validator": "^0.1.21",
+    "email-check": "^1.1.0",
+    "email-validator": "^2.0.4",
+    "isemail": "^3.2.0",
+    "mailslurp-client": "^15.17.0",
     "nodemailer": "^6.9.1",
+    "sendmail": "^1.6.1",
     "smtp-server": "^3.11.0",
     "socket.io": "^4.6.1"
   }

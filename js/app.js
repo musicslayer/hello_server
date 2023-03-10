@@ -20,7 +20,7 @@ log.logEvent("SERVER", "main", "Server Initialized");
 
 // Create some starter accounts.
 socket_io.initializeAccount("mr_a", "fluffy", "mjv59@cornell.edu");
-socket_io.initializeAccount("mr_c", "other", "c@hotmail.com");
+socket_io.initializeAccount("mr_c", "other", "musicslayerX@proton.me");
 
 // Make mr_c start off as powerful.
 socket_io.setGameData("mr_c", "is_powerful", true);

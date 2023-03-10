@@ -1,18 +1,22 @@
 const log = require("../util/log.js");
 const nodemailer = require("nodemailer");
 
-const EMAIL_FROM = "485aa0cc-6d50-4208-be22-981271727e55@mailslurp.mx"
+const EMAIL_FROM = "hotbugxx@gmail.com";
 
 const transporter = nodemailer.createTransport({
-	host: "mailslurp.mx",
-    port: 2587,
+	service: "gmail",
+	host: "smtp.gmail.com",
     auth: {
-        user: "kzMxScUcWEM2AdPFVIKNB71Fdql3wht6",
-        pass: "Lu1pfCDQKYyrKkr8603DBc61xWKWRkWF"
+        user: "hotbugxx@gmail.com",
+        pass: "etxtoacecsunjque"
     }
 });
 
 async function sendAccountCreationEmail(email, url) {
+	if(!(await isEmailValid(email))) {
+		return false;
+	}
+
 	try {
 		let mailOptions = {
 			from: EMAIL_FROM,
@@ -37,6 +41,10 @@ async function sendAccountCreationEmail(email, url) {
 }
 
 async function sendPasswordResetEmail(email, url) {
+	if(!(await isEmailValid(email))) {
+		return false;
+	}
+
 	try {
 		let mailOptions = {
 			from: EMAIL_FROM,
@@ -61,6 +69,10 @@ async function sendPasswordResetEmail(email, url) {
 }
 
 async function sendEmailChangeEmail(email, url) {
+	if(!(await isEmailValid(email))) {
+		return false;
+	}
+
 	try {
 		let mailOptions = {
 			from: EMAIL_FROM,
@@ -68,10 +80,10 @@ async function sendEmailChangeEmail(email, url) {
 			subject: "Email Change",
 			html: "Click the following link to complete the email change process:<br/>" +
 			`<a href=${url}>Finish Email Change</a><br/><br/>` + 
-			"Please do not reply to this email."
+			"Please do not reply to this email.",
 		};
 
-		await transporter.sendMail(mailOptions);
+		const sent = await transporter.sendMail(mailOptions);
 
 		log.logEvent("SERVER", "main", "Server Email Success", "Change Email", email);
 
@@ -85,6 +97,10 @@ async function sendEmailChangeEmail(email, url) {
 }
 
 async function sendLogOutEmail(email, url) {
+	if(!(await isEmailValid(email))) {
+		return false;
+	}
+
 	try {
 		let mailOptions = {
 			from: EMAIL_FROM,
@@ -109,6 +125,10 @@ async function sendLogOutEmail(email, url) {
 }
 
 async function sendResetAccountEmail(email, url) {
+	if(!(await isEmailValid(email))) {
+		return false;
+	}
+
 	try {
 		let mailOptions = {
 			from: EMAIL_FROM,
@@ -134,6 +154,10 @@ async function sendResetAccountEmail(email, url) {
 }
 
 async function sendDeleteAccountEmail(email, url) {
+	if(!(await isEmailValid(email))) {
+		return false;
+	}
+	
 	try {
 		let mailOptions = {
 			from: EMAIL_FROM,
@@ -154,6 +178,49 @@ async function sendDeleteAccountEmail(email, url) {
 	catch(err) {
 		log.logError("SERVER", "main", "Server Email Failure", err, "Delete Account", email);
 
+		return false;
+	}
+}
+
+async function isEmailValid(email) {
+	return isEmailCorrectFormat(email) && await isEmailDNSActive(email);
+}
+
+function isEmailCorrectFormat(email) {
+	var emailRegex = /^[-!#$%&'*+\/0-9=?A-Z^_a-z{|}~](\.?[-!#$%&'*+\/0-9=?A-Z^_a-z`{|}~])*@[a-zA-Z0-9](-*\.?[a-zA-Z0-9])*\.[a-zA-Z](-?[a-zA-Z0-9])+$/;
+
+    if (!email)
+        return false;
+
+    if(email.length>254)
+        return false;
+
+    var valid = emailRegex.test(email);
+    if(!valid)
+        return false;
+
+    // Further checking of some things regex can't handle
+    var parts = email.split("@");
+    if(parts[0].length>64)
+        return false;
+
+    var domainParts = parts[1].split(".");
+    if(domainParts.some(function(part) { return part.length>63; }))
+        return false;
+
+    return true;
+}
+
+async function isEmailDNSActive(email) {
+	const parts = email.split("@");
+	const domain = parts[1];
+
+	const dnsPromises = require('dns').promises;
+	try {
+		const demo1 = await dnsPromises.resolveMx(domain);
+		return demo1.length > 0;
+	}
+	catch(err) {
 		return false;
 	}
 }

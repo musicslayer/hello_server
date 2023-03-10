@@ -180,7 +180,7 @@ function createHTTPServer() {
 	server.timeout = SERVER_REQUEST_TIMEOUT;
 
 	server.listen(SERVER_PORT, () => {
-		log.logEvent("SERVER", "main", "Server Listen On Port", SERVER_PORT);
+		log.logEvent("SERVER", "main", "HTTP Server Listening On Port", SERVER_PORT);
 	});
 
 	return server;
