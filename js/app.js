@@ -19,7 +19,7 @@ log.logEvent("SERVER", "main", "Server Initialized");
 /////////////////////
 
 // Create some starter accounts.
-socket_io.initializeAccount("mr_a", "fluffy", "a@gmail.com");
+socket_io.initializeAccount("mr_a", "fluffy", "mjv59@cornell.edu");
 socket_io.initializeAccount("mr_c", "other", "c@hotmail.com");
 
 // Make mr_c start off as powerful.

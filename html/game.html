@@ -7,9 +7,9 @@
 	<body>
 		<h1>Hello Server</h1>
 		
-		<a href="/login">Log out.</a>
-		
 		<p id="ID_CurrentUserText" style='white-space: pre;'></p>
+		
+		<button id="ID_LogoutButton">Log Out</button>
 		
 		<h2>Game</h2>
 		<button id="ID_GrindButton">Grind</button>
@@ -20,6 +20,7 @@
 		
 		<script>
 			const CurrentUserText = document.querySelector('#ID_CurrentUserText');
+			const LogoutButton = document.querySelector('#ID_LogoutButton');
 		
 			const GrindButton = document.querySelector('#ID_GrindButton');
 			const DisplayText = document.querySelector('#ID_DisplayText');
@@ -34,10 +35,14 @@
 				connectToServer(getUsername(), getPassword())
 			});
 			
+			LogoutButton.addEventListener('click', async () => {
+				await socket.emitWithAck("logout", currentUserGameData.get("username"));
+				window.location.assign("/login");
+			});
+			
 			GrindButton.addEventListener('click', () => {
 				socket.emit('grind_skill', currentUserGameData.get("username"));
 			});
-		
 			
 			function connectToServer(username, password) {
 				if(socket) {
@@ -49,6 +54,10 @@
 				socket.on("connect_error", (err) => {
 					updateUserDataError(err);
 					updateUserGameDataError();
+				});
+				
+				socket.on("disconnect", (err) => {
+					socket.disconnect(true);
 				});
 				
 				socket.on('user login', (username, password) => {

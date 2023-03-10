@@ -4,7 +4,7 @@ const message = require("../util/message.js");
 const rate_limit = require("../security/rate_limit.js");
 const url = require("../util/url.js");
 
-const accountMap = new Map();
+const accountDataMap = new Map();
 const gameDataMap = new Map();
 
 function createSocketIOServer(server) {
@@ -29,11 +29,28 @@ function createSocketIOServer(server) {
 			socket.on("is_user_password", (username, password, callback) => {
 				callback({isUserPassword:isUserPassword(username, password)});
 			});
+
+			socket.on("is_user_resetting_password", (username, callback) => {
+				callback({isUserResettingPassword:isUserResettingPassword(username)});
+			});
+
+			socket.on("is_user_logged_in", (username, callback) => {
+				callback({isUserLoggedIn:isUserLoggedIn(username)});
+			});
 		}
 	
 		if(socket.handshake.query.change) {
 			// Changing account settings
 			type = type + "Change;";
+
+			socket.on("reset_user_password", (username, callback) => {
+				let isSuccess = resetUserPassword(username);
+				let isSuccessString = isSuccess ? "Success" : "Failure";
+				
+				log.logEvent("CLIENT", ipAddress, "Socket IO Reset Password", username, isSuccessString);
+
+				callback({success:isSuccess});
+			});
 
 			socket.on("change_user_password", (username, password, callback) => {
 				let isSuccess = changeUserPassword(username, password);
@@ -65,6 +82,38 @@ function createSocketIOServer(server) {
 
 				callback({success:isSuccess});
 			});
+			socket.on("send_email_change_email", (email, url, callback) => {
+				let isSuccess = message.sendEmailChangeEmail(email, url);
+				let isSuccessString = isSuccess ? "Success" : "Failure";
+				
+				log.logEvent("CLIENT", ipAddress, "Socket IO Email Change Email", email, isSuccessString);
+
+				callback({success:isSuccess});
+			});
+			socket.on("send_log_out_email", (email, url, callback) => {
+				let isSuccess = message.sendLogOutEmail(email, url);
+				let isSuccessString = isSuccess ? "Success" : "Failure";
+				
+				log.logEvent("CLIENT", ipAddress, "Socket IO Email Log Out", email, isSuccessString);
+
+				callback({success:isSuccess});
+			});
+			socket.on("send_reset_account_email", (email, url, callback) => {
+				let isSuccess = message.sendResetAccountEmail(email, url);
+				let isSuccessString = isSuccess ? "Success" : "Failure";
+				
+				log.logEvent("CLIENT", ipAddress, "Socket IO Email Reset Account", email, isSuccessString);
+
+				callback({success:isSuccess});
+			});
+			socket.on("send_delete_account_email", (email, url, callback) => {
+				let isSuccess = message.sendDeleteAccountEmail(email, url);
+				let isSuccessString = isSuccess ? "Success" : "Failure";
+				
+				log.logEvent("CLIENT", ipAddress, "Socket IO Email Delete Account", email, isSuccessString);
+
+				callback({success:isSuccess});
+			});
 		}
 	
 		if(socket.handshake.query.login) {
@@ -74,23 +123,34 @@ function createSocketIOServer(server) {
 			const username = socket.handshake.auth.username;
 			const password = socket.handshake.auth.password;
 
+			setAccountData(username, "isLoggedIn", true);
+
 			log.logEvent("CLIENT", ipAddress, "Socket IO Login Success", username);
 	
 			emitUserLogin(socket, username, password);
 			emitUserGameData(socket, username);
+
+			socket.on("logout", (username, callback) => {
+				log.logEvent("CLIENT", ipAddress, "Socket IO Logout Success", username);
+
+				setAccountData(username, "isLoggedIn", false);
+				callback();
+			});
 	
 			socket.on("grind_skill", (username) => {
 				try {
+					validateUserLoggedIn(username);
+
 					let experience = getGameData(username, "experience");
 					experience++;
 					setGameData(username, "experience", experience);
 
-					log.logEvent("GAME", ipAddress, "Game Experience Change", username, experience);
+					log.logEvent("GAME", ipAddress, "Game Grind Skill Success", username, experience);
 
 					emitUserGameData(socket, username);
 				}
 				catch(err) {
-					log.logError("GAME", ipAddress, "Game Experience Change Failure", err);
+					log.logError("GAME", ipAddress, "Game Grind Skill Failure", err, username);
 				}
 			});
 		}
@@ -154,7 +214,7 @@ function createSocketIOServer(server) {
 */
 
 function isUser(username) {
-	return accountMap.has(username);
+	return accountDataMap.has(username);
 }
 
 function isUserEmail(username, email) {
@@ -162,18 +222,34 @@ function isUserEmail(username, email) {
 		return false;
 	}
 
-	return accountMap.get(username).get("email") === email;
+	return accountDataMap.get(username).get("email") === email;
 }
 
 function isUserPassword(username, password) {
 	// Check if the password creates the right token.
 	const actToken = createToken(username, password);
-	const expToken = accountMap.get(username).get("token");
+	const expToken = accountDataMap.get(username).get("token");
 	return actToken === expToken;
 }
 
+function isUserResettingPassword(username) {
+	if(!isUser(username)) {
+		return false;
+	}
+
+	return accountDataMap.get(username).get("isResettingPassword");
+}
+
+function isUserLoggedIn(username) {
+	if(!isUser(username)) {
+		return false;
+	}
+
+	return accountDataMap.get(username).get("isLoggedIn");
+}
+
 function initializeAccount(username, password, email) {
-	accountMap.set(username, createNewAccountData(username, password, email));
+	accountDataMap.set(username, createNewAccountData(username, password, email));
 	gameDataMap.set(username, createNewGameData(username));
 }
 
@@ -187,24 +263,63 @@ function createNewAccountData(username, password, email) {
 	accountData.set("username", username);
 	accountData.set("email", email);
 	accountData.set("token", createToken(username, password));
+	accountData.set("isResettingPassword", false);
+	accountData.set("isLoggedIn", false);
 	return accountData;
 }
 
-function changeUserPassword(username, password) {
+function resetUserPassword(username) {
 	if(!isUser(username)) {
 		return false;
 	}
 
+	// The old password is still valid, but flag the account as being in the process of resetting the password.
+	accountDataMap.get(username).set("isResettingPassword", true);
+
+	return true;
+}
+
+function changeUserPassword(username, password) {
+	if(!isUser(username) || !isUserResettingPassword(username)) {
+		return false;
+	}
+
 	// Do not allow same password.
-	const oldPassword = accountMap.get(username).get("password");
+	const oldPassword = accountDataMap.get(username).get("password");
 	if(password === oldPassword) {
 		return false;
 	}
 
-	accountMap.get(username).set("password", password);
-	accountMap.get(username).set("token", createToken(username, password));
+	accountDataMap.get(username).set("password", password);
+	accountDataMap.get(username).set("token", createToken(username, password));
+	accountDataMap.get(username).set("isResettingPassword", false);
 
 	return true;
+}
+
+function resetAccount(username) {
+	gameDataMap.set(username, createNewGameData(username));
+}
+
+function deleteAccount(username) {
+	accountDataMap.delete(username);
+	gameDataMap.delete(username);
+}
+
+function getAccountData(username, key) {
+	accountData = accountDataMap.get(username);
+	return accountData.get(key);
+}
+
+function setAccountData(username, key, value) {
+	accountData = accountDataMap.get(username);
+	accountData.set(key, value);
+}
+
+function validateUserLoggedIn(username) {
+	if(!isUserLoggedIn(username)) {
+		throw new Error("User Not Logged In: " + username);
+	}
 }
 
 /*
@@ -219,14 +334,14 @@ function createNewGameData(username) {
 	return gameData;
 }
 
-function getGameData(username, id) {
+function getGameData(username, key) {
 	gameData = gameDataMap.get(username);
-	return gameData.get(id);
+	return gameData.get(key);
 }
 
-function setGameData(username, id, key) {
+function setGameData(username, key, value) {
 	gameData = gameDataMap.get(username);
-	gameData.set(id, key);
+	gameData.set(key, value);
 }
 
 function emitUserLogin(socket, username, password) {
@@ -257,8 +372,81 @@ function verifyAccountCreation(_url) {
 	return true;
 }
 
+function verifyEmailChange(_url) {
+	if(!url.isValidQuery(_url, ["username", "email"], [])) {
+		return false;
+	}
+
+    const username = url.getURLParameter(_url, "username");
+    const email = url.getURLParameter(_url, "email");
+
+	// If the username doesn't exist, then this process should fail.
+	if(!isUser(username)) {
+		return false;
+	}
+
+	setAccountData(username, "email", email);
+
+	return true;
+}
+
+function verifyLogOut(_url) {
+	if(!url.isValidQuery(_url, ["username"], [])) {
+		return false;
+	}
+
+    const username = url.getURLParameter(_url, "username");
+
+	// If the username doesn't exist, then this process should fail.
+	if(!isUser(username)) {
+		return false;
+	}
+
+	setAccountData(username, "isLoggedIn", false);
+
+	return true;
+}
+
+function verifyResetAccount(_url) {
+	if(!url.isValidQuery(_url, ["username"], [])) {
+		return false;
+	}
+
+    const username = url.getURLParameter(_url, "username");
+
+	// If the username doesn't exist, then this process should fail.
+	if(!isUser(username)) {
+		return false;
+	}
+
+	resetAccount(username);
+
+	return true;
+}
+
+function verifyDeleteAccount(_url) {
+	if(!url.isValidQuery(_url, ["username"], [])) {
+		return false;
+	}
+
+    const username = url.getURLParameter(_url, "username");
+
+	// If the username doesn't exist, then this process should fail.
+	if(!isUser(username)) {
+		return false;
+	}
+
+	deleteAccount(username);
+
+	return true;
+}
+
 module.exports.createSocketIOServer = createSocketIOServer;
 module.exports.verifyAccountCreation = verifyAccountCreation;
+module.exports.verifyEmailChange = verifyEmailChange;
+module.exports.verifyLogOut = verifyLogOut;
+module.exports.verifyResetAccount = verifyResetAccount;
+module.exports.verifyDeleteAccount = verifyDeleteAccount;
 
 // For development
 module.exports.initializeAccount = initializeAccount;

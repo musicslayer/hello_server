@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en-US">	
+	<head>
+		<title>Hello Server</title>
+	</head>
+
+	<body>
+		<h1>Hello Server</h1>
+		
+		<a href="/login">Back to login page.</a>
+		
+		<h2>Troubleshoot an Account</h2>
+		
+		<p style='white-space: pre;'>If you are having problems with your account, the following options may help.</p>
+		
+		<br/><br/>
+		
+		<h3>Log Out</h3>
+		
+		<p style='white-space: pre;'>Forcibly log out of your account.</p>
+		
+		<table>
+		<tr>
+			<td><b>Username:</b></td>
+			<td><input id="ID_LogOutUsernameInput" type="text" maxlength="20"></input></td>
+		</tr>
+	
+		<tr>
+			<td><b>Password:</b></td>
+			<td><input id="ID_LogOutPasswordInput" type="text" maxlength="20"></input></td>
+		</tr>
+		
+		<tr>
+			<td><b>Email:</b></td>
+			<td><input id="ID_LogOutEmailInput" type="text" maxlength="20"></input></td>
+		</tr>
+		</table>
+		
+		<br/>
+		
+		<button id="ID_LogOutButton">Log Out</button>
+		
+		<p id="ID_LogOutResultText" style='white-space: pre;'></p>
+		
+		<br/><br/>
+		
+		<h3 style="color: #B00000">Reset Account</h3>
+		
+		<p style='white-space: pre; color: #B00000'>Permanently reset your account and erase all progress. This cannot be reversed.</p>
+		
+		<table>
+		<tr>
+			<td><b>Username:</b></td>
+			<td><input id="ID_ResetAccountUsernameInput" type="text" maxlength="20"></input></td>
+		</tr>
+	
+		<tr>
+			<td><b>Password:</b></td>
+			<td><input id="ID_ResetAccountPasswordInput" type="text" maxlength="20"></input></td>
+		</tr>
+		
+		<tr>
+			<td><b>Email:</b></td>
+			<td><input id="ID_ResetAccountEmailInput" type="text" maxlength="20"></input></td>
+		</tr>
+		</table>
+		
+		<br/>
+		
+		<button id="ID_ResetAccountButton">Reset Account</button>
+		
+		<p id="ID_ResetAccountResultText" style='white-space: pre;'></p>
+		
+		<br/><br/>
+		
+		<h3 style="color: #B00000">Delete Account</h3>
+		
+		<p style='white-space: pre; color: #B00000'>Permanently delete your account. This cannot be reversed.</p>
+		
+		<table>
+		<tr>
+			<td><b>Username:</b></td>
+			<td><input id="ID_DeleteAccountUsernameInput" type="text" maxlength="20"></input></td>
+		</tr>
+	
+		<tr>
+			<td><b>Password:</b></td>
+			<td><input id="ID_DeleteAccountPasswordInput" type="text" maxlength="20"></input></td>
+		</tr>
+		
+		<tr>
+			<td><b>Email:</b></td>
+			<td><input id="ID_DeleteAccountEmailInput" type="text" maxlength="20"></input></td>
+		</tr>
+		</table>
+		
+		<br/>
+		
+		<button id="ID_DeleteAccountButton">Delete Account</button>
+		
+		<p id="ID_DeleteAccountResultText" style='white-space: pre;'></p>
+		
+		<script src="/socket.io/socket.io.js"></script>
+		
+		<script>
+			const LogOutUsernameInput = document.querySelector('#ID_LogOutUsernameInput');
+			const LogOutPasswordInput = document.querySelector('#ID_LogOutPasswordInput');
+			const LogOutEmailInput = document.querySelector('#ID_LogOutEmailInput');
+			const LogOutButton = document.querySelector('#ID_LogOutButton');
+			const LogOutResultText = document.querySelector('#ID_LogOutResultText');
+			
+			const ResetAccountUsernameInput = document.querySelector('#ID_ResetAccountUsernameInput');
+			const ResetAccountPasswordInput = document.querySelector('#ID_ResetAccountPasswordInput');
+			const ResetAccountEmailInput = document.querySelector('#ID_ResetAccountEmailInput');
+			const ResetAccountButton = document.querySelector('#ID_ResetAccountButton');
+			const ResetAccountResultText = document.querySelector('#ID_ResetAccountResultText');
+			
+			const DeleteAccountUsernameInput = document.querySelector('#ID_DeleteAccountUsernameInput');
+			const DeleteAccountPasswordInput = document.querySelector('#ID_DeleteAccountPasswordInput');
+			const DeleteAccountEmailInput = document.querySelector('#ID_DeleteAccountEmailInput');
+			const DeleteAccountButton = document.querySelector('#ID_DeleteAccountButton');
+			const DeleteAccountResultText = document.querySelector('#ID_DeleteAccountResultText');
+			
+			const BLACK = "#000000";
+			const RED = "#B00000";
+			
+			var socket;
+			
+			window.addEventListener('load', () => {
+				if(socket) {
+					socket.disconnect(true);
+				}
+				
+				socket = io({auth: "", query: {info: "account", email: "account"}});
+			});
+			
+			LogOutButton.addEventListener('click', async () => {
+				const username = LogOutUsernameInput.value;
+				const password = LogOutPasswordInput.value;
+				const email = LogOutEmailInput.value;
+				
+				if(!isValidText(username)) {
+					LogOutResultText.style.color = RED;
+					LogOutResultText.innerHTML = "Must supply a nonempty username without spaces and containing only ASCII letters, numbers, and underscores (but not starting with an underscore).";
+				}
+				else if(!(await isUser(username))) {
+					LogOutResultText.style.color = RED;
+					LogOutResultText.innerHTML = "A user with this username does not exist.";
+				}
+				else if(!isValidText(password)) {
+					LogOutResultText.style.color = RED;
+					LogOutResultText.innerHTML = "Must supply a nonempty password without spaces and containing only ASCII letters, numbers, and underscores (but not starting with an underscore).";
+				}
+				else if(!(await isUserPassword(username, password))) {
+					LogOutResultText.style.color = RED;
+					LogOutResultText.innerHTML = "The password is incorrect for this user.";
+				}
+				else if(!isValidEmail(email)) {
+					LogOutResultText.style.color = RED;
+					LogOutResultText.innerHTML = "Must supply a valid current email.";
+				}
+				else if(!(await isUserEmail(username, email))) {
+					LogOutResultText.style.color = RED;
+					LogOutResultText.innerHTML = "The email is incorrect for this user.";
+				}
+				else {
+					const url = "http://localhost:8080/log_out_verify?username=" + username;
+					
+					let R = await socket.emitWithAck("send_log_out_email", email, url);
+					if(R.success) {
+						LogOutResultText.style.color = BLACK;
+						LogOutResultText.innerHTML = "Check your email for a confirmation link to complete the process.";
+					}
+					else {
+						LogOutResultText.style.color = RED;
+						LogOutResultText.innerHTML = "There is a problem sending the email with the confirmation link. Please try again later.";
+					}
+				}
+			});
+			
+			ResetAccountButton.addEventListener('click', async () => {
+				const username = ResetAccountUsernameInput.value;
+				const password = ResetAccountPasswordInput.value;
+				const email = ResetAccountEmailInput.value;
+				
+				if(!isValidText(username)) {
+					ResetAccountResultText.style.color = RED;
+					ResetAccountResultText.innerHTML = "Must supply a nonempty username without spaces and containing only ASCII letters, numbers, and underscores (but not starting with an underscore).";
+				}
+				else if(!(await isUser(username))) {
+					ResetAccountResultText.style.color = RED;
+					ResetAccountResultText.innerHTML = "A user with this username does not exist.";
+				}
+				else if(!isValidText(password)) {
+					ResetAccountResultText.style.color = RED;
+					ResetAccountResultText.innerHTML = "Must supply a nonempty password without spaces and containing only ASCII letters, numbers, and underscores (but not starting with an underscore).";
+				}
+				else if(!(await isUserPassword(username, password))) {
+					ResetAccountResultText.style.color = RED;
+					ResetAccountResultText.innerHTML = "The password is incorrect for this user.";
+				}
+				else if(!isValidEmail(email)) {
+					ResetAccountResultText.style.color = RED;
+					ResetAccountResultText.innerHTML = "Must supply a valid current email.";
+				}
+				else if(!(await isUserEmail(username, email))) {
+					ResetAccountResultText.style.color = RED;
+					ResetAccountResultText.innerHTML = "The email is incorrect for this user.";
+				}
+				else {
+					const url = "http://localhost:8080/reset_account_verify?username=" + username;
+					
+					let R = await socket.emitWithAck("send_reset_account_email", email, url);
+					if(R.success) {
+						ResetAccountResultText.style.color = BLACK;
+						ResetAccountResultText.innerHTML = "Check your email for a confirmation link to complete the process.";
+					}
+					else {
+						ResetAccountResultText.style.color = RED;
+						ResetAccountResultText.innerHTML = "There is a problem sending the email with the confirmation link. Please try again later.";
+					}
+				}
+			});
+			
+			DeleteAccountButton.addEventListener('click', async () => {
+				const username = DeleteAccountUsernameInput.value;
+				const password = DeleteAccountPasswordInput.value;
+				const email = DeleteAccountEmailInput.value;
+				
+				if(!isValidText(username)) {
+					DeleteAccountResultText.style.color = RED;
+					DeleteAccountResultText.innerHTML = "Must supply a nonempty username without spaces and containing only ASCII letters, numbers, and underscores (but not starting with an underscore).";
+				}
+				else if(!(await isUser(username))) {
+					DeleteAccountResultText.style.color = RED;
+					DeleteAccountResultText.innerHTML = "A user with this username does not exist.";
+				}
+				else if(!isValidText(password)) {
+					DeleteAccountResultText.style.color = RED;
+					DeleteAccountResultText.innerHTML = "Must supply a nonempty password without spaces and containing only ASCII letters, numbers, and underscores (but not starting with an underscore).";
+				}
+				else if(!(await isUserPassword(username, password))) {
+					DeleteAccountResultText.style.color = RED;
+					DeleteAccountResultText.innerHTML = "The password is incorrect for this user.";
+				}
+				else if(!isValidEmail(email)) {
+					DeleteAccountResultText.style.color = RED;
+					DeleteAccountResultText.innerHTML = "Must supply a valid current email.";
+				}
+				else if(!(await isUserEmail(username, email))) {
+					DeleteAccountResultText.style.color = RED;
+					DeleteAccountResultText.innerHTML = "The email is incorrect for this user.";
+				}
+				else {
+					const url = "http://localhost:8080/delete_account_verify?username=" + username;
+					
+					let R = await socket.emitWithAck("send_delete_account_email", email, url);
+					if(R.success) {
+						DeleteAccountResultText.style.color = BLACK;
+						DeleteAccountResultText.innerHTML = "Check your email for a confirmation link to complete the process.";
+					}
+					else {
+						DeleteAccountResultText.style.color = RED;
+						DeleteAccountResultText.innerHTML = "There is a problem sending the email with the confirmation link. Please try again later.";
+					}
+				}
+			});
+			
+			async function isUser(username) {
+				let R = await socket.emitWithAck("is_user", username);
+				return R.isUser;
+			}
+			
+			async function isUserPassword(username, password) {
+				let R = await socket.emitWithAck("is_user_password", username, password);
+				return R.isUserPassword;
+			}
+			
+			async function isUserEmail(username, email) {
+				let R = await socket.emitWithAck("is_user_email", username, email);
+				return R.isUserEmail;
+			}
+			
+			function isValidText(str) {
+				// Check that there are no spaces and that all characters are ASCII letters, numbers, or underscores (but not starting with an underscore).
+				if(str === "") {
+					return false;
+				}
+				
+				if(str.startsWith("_")) {
+					return false;
+				}
+				
+				return /^[a-zA-Z0-9_]*$/.test(str);
+			}
+			
+			function isValidEmail(str) {
+				// Check that there are no spaces and that all characters are ASCII letters/numbers.
+				if(str === "") {
+					return false;
+				}
+				
+				return true;
+			}
+		</script>
+	</body>
+</html>

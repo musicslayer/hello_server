@@ -15,6 +15,16 @@ const HTML_CREATE_ACCOUNT_VERIFY_SUCCESS = "html/create_account_success.html";
 const HTML_CREATE_ACCOUNT_VERIFY_FAILURE = "html/create_account_failure.html";
 const HTML_RESET_PASSWORD = "html/reset_password.html";
 const HTML_RESET_PASSWORD_FINISH = "html/reset_password_finish.html";
+const HTML_CHANGE_EMAIL = "html/change_email.html";
+const HTML_CHANGE_EMAIL_SUCCESS = "html/change_email_success.html";
+const HTML_CHANGE_EMAIL_FAILURE = "html/change_email_failure.html";
+const HTML_TROUBLESHOOT_ACCOUNT = "html/troubleshoot_account.html";
+const HTML_LOG_OUT_SUCCESS = "html/log_out_success.html";
+const HTML_LOG_OUT_FAILURE = "html/log_out_failure.html";
+const HTML_RESET_ACCOUNT_SUCCESS = "html/reset_account_success.html";
+const HTML_RESET_ACCOUNT_FAILURE = "html/reset_account_failure.html";
+const HTML_DELETE_ACCOUNT_SUCCESS = "html/delete_account_success.html";
+const HTML_DELETE_ACCOUNT_FAILURE = "html/delete_account_failure.html";
 const HTML_GAME = "html/game.html";
 
 const SERVER_PORT = 8080;
@@ -23,6 +33,7 @@ const SERVER_REQUEST_TIMEOUT = 30000; // milliseconds
 function createHTTPServer() {
 	const server = http.createServer((req, res) => {
 		const ipAddress = ip.getIPAddressFromRequest(req);
+		let pageName = "";
 
 		res.isEnded = false;
 
@@ -53,7 +64,6 @@ function createHTTPServer() {
 
 			// Serve pages.
 			const pathname = url.parse(req.url, true).pathname;
-			let pageName = "";
 
 			switch(pathname) {
 				case "/": {
@@ -92,6 +102,60 @@ function createHTTPServer() {
 					serveHTML(res, HTML_RESET_PASSWORD_FINISH);
 					break;
 				}
+				case "/change_email": {
+					pageName = "Change Email";
+					serveHTML(res, HTML_CHANGE_EMAIL);
+					break;
+				}
+				case "/change_email_verify": {
+					if(socketIO.verifyEmailChange(req.url)) {
+						pageName = "Change Email Success";
+						serveHTML(res, HTML_CHANGE_EMAIL_SUCCESS);
+					}
+					else {
+						pageName = "Change Email Failure";
+						serveHTML(res, HTML_CHANGE_EMAIL_FAILURE);
+					}
+					break;
+				}
+				case "/troubleshoot_account": {
+					pageName = "Troubleshoot Account";
+					serveHTML(res, HTML_TROUBLESHOOT_ACCOUNT);
+					break;
+				}
+				case "/log_out_verify": {
+					if(socketIO.verifyLogOut(req.url)) {
+						pageName = "Log Out Success";
+						serveHTML(res, HTML_LOG_OUT_SUCCESS);
+					}
+					else {
+						pageName = "Log Out Failure";
+						serveHTML(res, HTML_LOG_OUT_FAILURE);
+					}
+					break;
+				}
+				case "/reset_account_verify": {
+					if(socketIO.verifyResetAccount(req.url)) {
+						pageName = "Reset Account Success";
+						serveHTML(res, HTML_RESET_ACCOUNT_SUCCESS);
+					}
+					else {
+						pageName = "Reset Account Failure";
+						serveHTML(res, HTML_RESET_ACCOUNT_FAILURE);
+					}
+					break;
+				}
+				case "/delete_account_verify": {
+					if(socketIO.verifyDeleteAccount(req.url)) {
+						pageName = "Delete Account Success";
+						serveHTML(res, HTML_DELETE_ACCOUNT_SUCCESS);
+					}
+					else {
+						pageName = "Delete Account Failure";
+						serveHTML(res, HTML_DELETE_ACCOUNT_FAILURE);
+					}
+					break;
+				}
 				case "/game": {
 					pageName = "Game";
 					serveHTML(res, HTML_GAME);
@@ -107,7 +171,7 @@ function createHTTPServer() {
 			log.logEvent("CLIENT", ipAddress, "HTTP Serve Page Success", pageName);
 		}
 		catch(err) {
-			log.logError("CLIENT", ipAddress, "HTTP Serve Page Failure", err);
+			log.logError("CLIENT", ipAddress, "HTTP Serve Page Failure", err, pageName);
 
 			serveError(res, 400, "Error processing request.\n\n" + error.createErrorString(err));
 		}

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en-US">	
+	<head>
+		<title>Hello Server</title>
+	</head>
+
+	<body>
+		<h1>Hello Server</h1>
+		
+		<a href="/login">Back to login page.</a>
+		
+		<h2>Change Email</h2>
+		
+		<p style='white-space: pre;'>Change the email associated with your account. You must have access to both the current email and the new email to complete the process.</p>
+		
+		<table>
+		<tr>
+			<td><b>Username:</b></td>
+			<td><input id="ID_ChangeEmailUsernameInput" type="text" maxlength="20"></input></td>
+		</tr>
+	
+		<tr>
+			<td><b>Password:</b></td>
+			<td><input id="ID_ChangeEmailPasswordInput" type="text" maxlength="20"></input></td>
+		</tr>
+		
+		<tr>
+			<td><b>Current Email:</b></td>
+			<td><input id="ID_ChangeEmailCurrentEmailInput" type="text" maxlength="20"></input></td>
+		</tr>
+		
+		<tr>
+			<td><b>New Email:</b></td>
+			<td><input id="ID_ChangeEmailNewEmailInput" type="text" maxlength="20"></input></td>
+		</tr>
+		</table>
+		
+		<br/>
+		
+		<button id="ID_ChangeEmailButton">Change Email</button>
+		
+		<p id="ID_ChangeEmailResultText" style='white-space: pre;'></p>
+		
+		<script src="/socket.io/socket.io.js"></script>
+		
+		<script>
+			const ChangeEmailUsernameInput = document.querySelector('#ID_ChangeEmailUsernameInput');
+			const ChangeEmailPasswordInput = document.querySelector('#ID_ChangeEmailPasswordInput');
+			const ChangeEmailCurrentEmailInput = document.querySelector('#ID_ChangeEmailCurrentEmailInput');
+			const ChangeEmailNewEmailInput = document.querySelector('#ID_ChangeEmailNewEmailInput');
+			const ChangeEmailButton = document.querySelector('#ID_ChangeEmailButton');
+			const ChangeEmailResultText = document.querySelector('#ID_ChangeEmailResultText');
+			
+			const BLACK = "#000000";
+			const RED = "#B00000";
+			
+			var socket;
+			
+			window.addEventListener('load', () => {
+				if(socket) {
+					socket.disconnect(true);
+				}
+				
+				socket = io({auth: "", query: {info: "account", email: "account"}});
+			});
+			
+			// Accounts
+			ChangeEmailButton.addEventListener('click', async () => {
+				const username = ChangeEmailUsernameInput.value;
+				const password = ChangeEmailPasswordInput.value;
+				const currentEmail = ChangeEmailCurrentEmailInput.value;
+				const newEmail = ChangeEmailNewEmailInput.value;
+				
+				if(!isValidText(username)) {
+					ChangeEmailResultText.style.color = RED;
+					ChangeEmailResultText.innerHTML = "Must supply a nonempty username without spaces and containing only ASCII letters, numbers, and underscores (but not starting with an underscore).";
+				}
+				else if(!(await isUser(username))) {
+					ChangeEmailResultText.style.color = RED;
+					ChangeEmailResultText.innerHTML = "A user with this username does not exist.";
+				}
+				else if(!isValidText(password)) {
+					ChangeEmailResultText.style.color = RED;
+					ChangeEmailResultText.innerHTML = "Must supply a nonempty password without spaces and containing only ASCII letters, numbers, and underscores (but not starting with an underscore).";
+				}
+				else if(!(await isUserPassword(username, password))) {
+					ChangeEmailResultText.style.color = RED;
+					ChangeEmailResultText.innerHTML = "The password is incorrect for this user.";
+				}
+				else if(!isValidEmail(currentEmail)) {
+					ChangeEmailResultText.style.color = RED;
+					ChangeEmailResultText.innerHTML = "Must supply a valid current email.";
+				}
+				else if(!(await isUserEmail(username, currentEmail))) {
+					ChangeEmailResultText.style.color = RED;
+					ChangeEmailResultText.innerHTML = "The current email is incorrect for this user.";
+				}
+				else if(!isValidEmail(newEmail)) {
+					ChangeEmailResultText.style.color = RED;
+					ChangeEmailResultText.innerHTML = "Must supply a valid new email.";
+				}
+				else if(newEmail === currentEmail) {
+					ChangeEmailResultText.style.color = RED;
+					ChangeEmailResultText.innerHTML = "The new email must be different than the current email.";
+				}
+				else {
+					const url = "http://localhost:8080/change_email_verify?username=" + username + "&email=" + newEmail;
+					
+					let R = await socket.emitWithAck("send_email_change_email", currentEmail, url);
+					if(R.success) {
+						ChangeEmailResultText.style.color = BLACK;
+						ChangeEmailResultText.innerHTML = "Check your email for a confirmation link to complete the process.";
+					}
+					else {
+						ChangeEmailResultText.style.color = RED;
+						ChangeEmailResultText.innerHTML = "There is a problem sending the email with the confirmation link. Please try again later.";
+					}
+				}
+			});
+			
+			async function isUser(username) {
+				let R = await socket.emitWithAck("is_user", username);
+				return R.isUser;
+			}
+			
+			async function isUserPassword(username, password) {
+				let R = await socket.emitWithAck("is_user_password", username, password);
+				return R.isUserPassword;
+			}
+			
+			async function isUserEmail(username, email) {
+				let R = await socket.emitWithAck("is_user_email", username, email);
+				return R.isUserEmail;
+			}
+			
+			function isValidText(str) {
+				// Check that there are no spaces and that all characters are ASCII letters, numbers, or underscores (but not starting with an underscore).
+				if(str === "") {
+					return false;
+				}
+				
+				if(str.startsWith("_")) {
+					return false;
+				}
+				
+				return /^[a-zA-Z0-9_]*$/.test(str);
+			}
+			
+			function isValidEmail(str) {
+				// Check that there are no spaces and that all characters are ASCII letters/numbers.
+				if(str === "") {
+					return false;
+				}
+				
+				return true;
+			}
+		</script>
+	</body>
+</html>

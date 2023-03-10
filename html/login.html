@@ -7,8 +7,12 @@
 	<body>
 		<h1>Hello Server</h1>
 		
-		New? <a href="/create_account">Create an account.</a><br/>
-		Forgot Password? <a href="/reset_password">Reset your password.</a>
+		<h2>Account Options</h2>
+		
+		<a href="/create_account">Create a new account.</a><br/>
+		<a href="/reset_password">Reset your password.</a><br/>
+		<a href="/change_email">Change your email.</a><br/>
+		<a href="/troubleshoot_account">Troubleshoot your account.</a>
 		
 		<h2>Login</h2>
 		
@@ -59,6 +63,10 @@
 				
 				socket.on("connect_error", (err) => {
 					updateUserDataError(err);
+				});
+				
+				socket.on("disconnect", (err) => {
+					socket.disconnect(true);
 				});
 				
 				socket.on('user login', (username, password) => {
