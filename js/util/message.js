@@ -1,14 +1,15 @@
 const log = require("../util/log.js");
 const nodemailer = require("nodemailer");
+const secret = require("../security/secret.js");
 
-const EMAIL_FROM = "hotbugxx@gmail.com";
+const EMAIL_FROM = secret.getSecret("email_account");
 
 const transporter = nodemailer.createTransport({
 	service: "gmail",
 	host: "smtp.gmail.com",
     auth: {
-        user: "hotbugxx@gmail.com",
-        pass: "etxtoacecsunjque"
+        user: secret.getSecret("email_account"),
+        pass: secret.getSecret("email_password")
     }
 });
 
