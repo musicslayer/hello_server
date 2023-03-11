@@ -4,6 +4,21 @@ const secret = require("../security/secret.js");
 
 const EMAIL_FROM = secret.getSecret("email_account");
 
+const sendmail = require('sendmail')({
+	logger: {
+	  debug: console.log,
+	  info: console.info,
+	  warn: console.warn,
+	  error: console.error
+	},
+	silent: false,
+	rejectUnauthorized: false,
+	smtpPort: 2525, // Default: 25
+	smtpHost: 'localhost' // Default: -1 - extra smtp host after resolveMX
+})
+
+
+
 const transporter = nodemailer.createTransport({
 	service: "gmail",
 	host: "smtp.gmail.com",
@@ -14,6 +29,19 @@ const transporter = nodemailer.createTransport({
 });
 
 async function sendAccountCreationEmail(email, url) {
+	sendmail({
+		user: "mr_mr",
+		pass: "xyxy",
+		from: 'no-reply@musicslayer.com',
+		to: 'musicslayerX@proton.me',
+		subject: 'test sendmail',
+		html: 'Mail of test sendmail ',
+	  }, function(err, reply) {
+		console.log(err && err.stack);
+		console.dir(reply);
+	});
+
+	/*
 	if(!(await isEmailValid(email))) {
 		return false;
 	}
@@ -39,6 +67,7 @@ async function sendAccountCreationEmail(email, url) {
 
 		return false;
 	}
+	*/
 }
 
 async function sendPasswordResetEmail(email, url) {
